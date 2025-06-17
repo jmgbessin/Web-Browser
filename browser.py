@@ -1,0 +1,193 @@
+import socket
+import ssl
+# allows for encrypted HTTPS connections
+import tkinter
+import tkinter.font
+
+WIDTH, HEIGHT = 800, 600
+HSTEP, VSTEP = 13, 18
+SCROLL_STEP = 100
+
+class Browser:
+    def __init__(self):
+        self.window = tkinter.Tk()
+        self.canvas = tkinter.Canvas(
+            self.window,
+            width = WIDTH,
+            height = HEIGHT
+        )
+        self.canvas.pack()
+        # tkinter peculiarity: packs the canvas within the window
+        self.scroll = 0
+        
+        self.window.bind("<Down>", self.scrolldown)
+        # binds a function to a specific keyboard key through tkinter
+        
+    def draw(self):
+        self.canvas.delete("all")
+        for x, y, w, font in self.display_list:
+            if y > self.scroll + HEIGHT: continue
+            if y + VSTEP < self.scroll: continue
+            self.canvas.create_text(x, y - self.scroll, text = w, anchor = 'nw',
+                                    font = font)
+        
+    def load(self, url):
+        body = url.request()
+        text = lex(body)
+        self.display_list = layout(text)
+        self.draw()
+        
+    # down key or scroll event handler
+    """ scrolldown is passed an event object as an argument by Tk, but since 
+    scrolling down doesn't require any information about the key press besides 
+    the fact that it happened, scrolldown ignores that event object. """
+    def scrolldown(self, e):
+        self.scroll += SCROLL_STEP
+        self.draw()
+        
+class Layout:
+    def __init__(self, tokens):
+        self.display_list = []
+        self.cursor_x = HSTEP
+  
+def layout(tokens):
+    font = tkinter.font.Font()
+    display_list = []
+    cursor_x, cursor_y = HSTEP, VSTEP
+    
+    weight = "normal"
+    style = "roman"
+    
+    for tok in tokens:
+        if isinstance(tok, Text):
+            for word in tok.text.split():
+                font = tkinter.font.Font(
+                    size = 16,
+                    weight = weight,
+                    slant = style,
+                )
+                w = font.measure(word)
+                if cursor_x + w > WIDTH - HSTEP:
+                    cursor_y += font.metrics("linespace") * 1.25
+                    cursor_x = HSTEP  
+                display_list.append((cursor_x, cursor_y, word, font))
+                cursor_x += w + font.measure(" ")
+                if cursor_x >= WIDTH - HSTEP:
+                    cursor_y += VSTEP
+                    cursor_x = HSTEP
+        elif tok.tag == "i":
+            style = "italic"
+        elif tok.tag == "/i":
+            style = "roman"
+        elif tok.tag == "b":
+            print("bold reached")
+            weight = "bold"
+        elif tok.tag == "/b":
+            weight = "normal"
+    return display_list
+            
+
+class URL:
+    def __init__(self, url):
+        self.scheme, url = url.split("://", 1)
+        assert self.scheme in ["http", "https"]
+        if self.scheme == "http":
+            self.port = 80
+        if self.scheme == "https":
+            self.port = 443
+        
+        if "/" not in url:
+            url = url + "/"
+        self.host, url = url.split("/", 1)
+        
+        # support for custom ports
+        if ":" in self.host:
+            self.host, port = self.host.split(":", 1)
+            self.port = int(port)
+        
+        self.path = "/" + url
+        
+    def request(self):
+        # create socket
+        s = socket.socket(
+            family = socket.AF_INET,
+            type = socket.SOCK_STREAM,
+            # computer can send arbitrary amounts of data
+            proto = socket.IPPROTO_TCP,
+        )
+        
+        # connect socket to host
+        s.connect((self.host, self.port))
+        # requires host and port - port depends on protocol used
+        if self.scheme == "https":
+            ctx = ssl.create_default_context()
+            s = ctx.wrap_socket(s, server_hostname = self.host)
+        
+        # request data from host
+        request = "GET {} HTTP/1.0\r\n".format(self.path)
+        request += "Host: {}\r\n".format(self.host)
+        request += "\r\n"
+        s.send(request.encode("utf8"))
+        
+        # get server response
+        response = s.makefile("r", encoding = "utf8", newline = "\r\n")
+        """ the makefile method abstracts the loop that collects bytes as they 
+        arrive from the server """
+        statusline = response.readline()
+        version, status, explanation = statusline.split(" ", 2)
+        
+        response_headers = {}
+        while True:
+            line = response.readline()
+            if line == "\r\n":
+                break
+            header, value = line.split(":", 1)
+            response_headers[header.casefold()] = value.strip()
+            """ headers are case-sensitive - this normalizes them on our side 
+            if they come from server with capitals - and whitespace is 
+            insignificant in HTTP header values """
+        assert "transfer-encoding" not in response_headers
+        assert "content-encoding" not in response_headers
+        # indicates data is being sent in an unusual way
+        
+        content = response.read()
+        s.close()
+        return content
+    
+class Text:
+    def __init__(self, text):
+        self.text = text
+        
+class Tag:
+    def __init__(self, tag):
+        self.tag = tag
+
+def lex(body):
+    out = []
+    buffer = ""
+    in_tag = False
+    for c in body:
+        if c == "<":
+            in_tag = True
+            if buffer: out.append(Text(buffer))
+            buffer = ""
+        elif c == ">":
+            in_tag = False
+            out.append(Tag(buffer))
+            buffer = ""
+        else:
+            buffer += c
+    if not in_tag and buffer:
+        out.append(Text(buffer))
+    return out
+
+if __name__ == "__main__":
+    import sys
+    Browser().load(URL(sys.argv[1]))
+    tkinter.mainloop()
+    """ This enters a loop that looks like this:
+    while True:
+        for evt in pendingEvents():
+            handleEvent(evt)
+        drawScreen()
+    """
