@@ -48,6 +48,7 @@ class Browser:
 
 class Layout:
     def __init__(self, tokens):
+        self.line = []
         self.display_list = []
         self.cursor_x = HSTEP
         self.cursor_y = VSTEP
@@ -57,6 +58,7 @@ class Layout:
         
         for tok in tokens:
             self.token(tok)
+        self.flush()
             
     def token(self, tok):
         if isinstance(tok, Text):
@@ -78,6 +80,11 @@ class Layout:
             self.size += 4
         elif tok.tag == "/big":
             self.size -= 4
+        elif tok.tag == "br":
+            self.flush()
+        elif tok.tag == "/p":
+            self.flush()
+            self.cursor_y += VSTEP
             
     def word(self, word):
         font = tkinter.font.Font(
@@ -87,13 +94,30 @@ class Layout:
         )
         w = font.measure(word)
         if self.cursor_x + w > WIDTH - HSTEP:
-            self.cursor_y += font.metrics("linespace") * 1.25
-            self.cursor_x = HSTEP
-        self.display_list.append((self.cursor_x, self.cursor_y, word, font))
+            self.flush()
+        self.line.append((self.cursor_x, self.cursor_y, word, font))
         self.cursor_x += w + font.measure(" ")
-        if self.cursor_x >= WIDTH - HSTEP:
-            self.cursor_y += VSTEP
-            self.cursor_x = HSTEP
+        
+    def flush(self):
+        if not self.line: return
+        # checks for empty line list
+        metrics = [font.metrics() for x, y, word, font in self.line]
+        max_ascent = max([metric["ascent"] for metric in metrics])
+        baseline = self.cursor_y + 1.25 * max_ascent
+        # lowers the basline to account for different size fonts
+        # 1.25 * max_ascent takes into account the leading
+        
+        for x, y, word, font in self.line:
+            new_y = baseline - font.metrics("ascent")
+            # positions each word relative to the new baseline
+            self.display_list.append((x, new_y, word, font))
+            
+        max_descent = max([metric["descent"] for metric in metrics])
+        self.cursor_y = baseline + 1.25 * max_descent
+        
+        self.cursor_x = HSTEP
+        self.line = []
+        
         
 
 class URL:
