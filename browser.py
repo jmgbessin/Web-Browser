@@ -34,7 +34,7 @@ class Browser:
     def load(self, url):
         body = url.request()
         text = lex(body)
-        self.display_list = layout(text)
+        self.display_list = Layout(text).display_list
         self.draw()
         
     # down key or scroll event handler
@@ -44,48 +44,48 @@ class Browser:
     def scrolldown(self, e):
         self.scroll += SCROLL_STEP
         self.draw()
-        
+
+
 class Layout:
     def __init__(self, tokens):
         self.display_list = []
         self.cursor_x = HSTEP
-  
-def layout(tokens):
-    font = tkinter.font.Font()
-    display_list = []
-    cursor_x, cursor_y = HSTEP, VSTEP
-    
-    weight = "normal"
-    style = "roman"
-    
-    for tok in tokens:
+        self.cursor_y = VSTEP
+        self.weight = "normal"
+        self.style = "roman"
+        
+        for tok in tokens:
+            self.token(tok)
+            
+    def token(self, tok):
         if isinstance(tok, Text):
             for word in tok.text.split():
-                font = tkinter.font.Font(
-                    size = 16,
-                    weight = weight,
-                    slant = style,
-                )
-                w = font.measure(word)
-                if cursor_x + w > WIDTH - HSTEP:
-                    cursor_y += font.metrics("linespace") * 1.25
-                    cursor_x = HSTEP  
-                display_list.append((cursor_x, cursor_y, word, font))
-                cursor_x += w + font.measure(" ")
-                if cursor_x >= WIDTH - HSTEP:
-                    cursor_y += VSTEP
-                    cursor_x = HSTEP
+                self.word(word)
         elif tok.tag == "i":
-            style = "italic"
+            self.style = "italic"
         elif tok.tag == "/i":
-            style = "roman"
+            self.style = "roman"
         elif tok.tag == "b":
-            print("bold reached")
-            weight = "bold"
+            self.weight = "bold"
         elif tok.tag == "/b":
-            weight = "normal"
-    return display_list
+            self.weight = "normal"
             
+    def word(self, word):
+        font = tkinter.font.Font(
+            size = 16,
+            weight = self.weight,
+            slant = self.style,
+        )
+        w = font.measure(word)
+        if self.cursor_x + w > WIDTH - HSTEP:
+            self.cursor_y += font.metrics("linespace") * 1.25
+            self.cursor_x = HSTEP
+        self.display_list.append((self.cursor_x, self.cursor_y, word, font))
+        self.cursor_x += w + font.measure(" ")
+        if self.cursor_x >= WIDTH - HSTEP:
+            self.cursor_y += VSTEP
+            self.cursor_x = HSTEP
+        
 
 class URL:
     def __init__(self, url):
