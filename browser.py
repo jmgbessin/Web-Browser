@@ -23,6 +23,8 @@ class Browser:
         
         self.window.bind("<Down>", self.scrolldown)
         # binds a function to a specific keyboard key through tkinter
+        self.window.bind("<Up>", self.scrollup)
+        self.window.bind("<MouseWheel>", self.mousescroll)
         
     def draw(self):
         self.canvas.delete("all")
@@ -45,6 +47,21 @@ class Browser:
     def scrolldown(self, e):
         self.scroll += SCROLL_STEP
         self.draw()
+        
+    def scrollup(self, e):
+        if self.scroll < SCROLL_STEP:
+            self.scroll = 0
+        else:
+            self.scroll -= SCROLL_STEP
+        self.draw()
+        
+    def mousescroll(self, e):
+        if e.delta < 0:
+            self.scrolldown(e)
+        else:
+            self.scrollup(e)
+        
+        
 
 
 class Layout:
