@@ -10,14 +10,18 @@ SCROLL_STEP = 100
 FONTS = {}
 
 class Browser:
+    ## def __init__(self, url):
     def __init__(self):
+        ## self.url = url
         self.window = tkinter.Tk()
+        self.width = WIDTH
+        self.height = HEIGHT
         self.canvas = tkinter.Canvas(
             self.window,
             width = WIDTH,
             height = HEIGHT
         )
-        self.canvas.pack()
+        self.canvas.pack(fill = "both", expand = 1)
         # tkinter peculiarity: packs the canvas within the window
         self.scroll = 0
         
@@ -25,19 +29,22 @@ class Browser:
         # binds a function to a specific keyboard key through tkinter
         self.window.bind("<Up>", self.scrollup)
         self.window.bind("<MouseWheel>", self.mousescroll)
+        self.window.bind("<Configure>", self.windowresize)
         
     def draw(self):
         self.canvas.delete("all")
         for x, y, w, font in self.display_list:
-            if y > self.scroll + HEIGHT: continue
+            if y > self.scroll + self.height: continue
             if y + VSTEP < self.scroll: continue
             self.canvas.create_text(x, y - self.scroll, text = w, anchor = 'nw',
                                     font = font)
         
+    ## def load(self):
     def load(self, url):
+        ## body = self.url.request()
         body = url.request()
         text = lex(body)
-        self.display_list = Layout(text).display_list
+        self.display_list = Layout(text, self.width).display_list
         self.draw()
         
     # down key or scroll event handler
@@ -60,14 +67,18 @@ class Browser:
             self.scrolldown(e)
         else:
             self.scrollup(e)
-        
-        
-
+    
+    def windowresize(self, e):
+        self.width = e.width
+        self.height = e.height
+        ## self.load()
+                
 
 class Layout:
-    def __init__(self, tokens):
+    def __init__(self, tokens, width):
         self.line = []
         self.display_list = []
+        self.width = width
         self.cursor_x = HSTEP
         self.cursor_y = VSTEP
         self.weight = "normal"
@@ -107,7 +118,7 @@ class Layout:
     def word(self, word):
         font = getfont(self.size, self.weight, self.style)
         w = font.measure(word)
-        if self.cursor_x + w > WIDTH - HSTEP:
+        if self.cursor_x + w > self.width - HSTEP:
             self.flush()
         self.line.append((self.cursor_x, self.cursor_y, word, font))
         self.cursor_x += w + font.measure(" ")
@@ -243,6 +254,7 @@ def lex(body):
 
 if __name__ == "__main__":
     import sys
+    # Browser(URL(sys.argv[1])).load()
     Browser().load(URL(sys.argv[1]))
     tkinter.mainloop()
     """ This enters a loop that looks like this:
