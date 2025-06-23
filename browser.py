@@ -10,18 +10,14 @@ SCROLL_STEP = 100
 FONTS = {}
 
 class Browser:
-    ## def __init__(self, url):
     def __init__(self):
-        ## self.url = url
         self.window = tkinter.Tk()
-        self.width = WIDTH
-        self.height = HEIGHT
         self.canvas = tkinter.Canvas(
             self.window,
             width = WIDTH,
             height = HEIGHT
         )
-        self.canvas.pack(fill = "both", expand = 1)
+        self.canvas.pack()
         # tkinter peculiarity: packs the canvas within the window
         self.scroll = 0
         
@@ -29,22 +25,19 @@ class Browser:
         # binds a function to a specific keyboard key through tkinter
         self.window.bind("<Up>", self.scrollup)
         self.window.bind("<MouseWheel>", self.mousescroll)
-        self.window.bind("<Configure>", self.windowresize)
         
     def draw(self):
         self.canvas.delete("all")
         for x, y, w, font in self.display_list:
-            if y > self.scroll + self.height: continue
+            if y > self.scroll + HEIGHT: continue
             if y + VSTEP < self.scroll: continue
             self.canvas.create_text(x, y - self.scroll, text = w, anchor = 'nw',
                                     font = font)
         
-    ## def load(self):
     def load(self, url):
-        ## body = self.url.request()
         body = url.request()
         text = lex(body)
-        self.display_list = Layout(text, self.width).display_list
+        self.display_list = Layout(text).display_list
         self.draw()
         
     # down key or scroll event handler
@@ -67,18 +60,12 @@ class Browser:
             self.scrolldown(e)
         else:
             self.scrollup(e)
-    
-    def windowresize(self, e):
-        self.width = e.width
-        self.height = e.height
-        ## self.load()
-                
+
 
 class Layout:
-    def __init__(self, tokens, width):
+    def __init__(self, tokens):
         self.line = []
         self.display_list = []
-        self.width = width
         self.cursor_x = HSTEP
         self.cursor_y = VSTEP
         self.weight = "normal"
@@ -118,7 +105,7 @@ class Layout:
     def word(self, word):
         font = getfont(self.size, self.weight, self.style)
         w = font.measure(word)
-        if self.cursor_x + w > self.width - HSTEP:
+        if self.cursor_x + w > WIDTH - HSTEP:
             self.flush()
         self.line.append((self.cursor_x, self.cursor_y, word, font))
         self.cursor_x += w + font.measure(" ")
@@ -142,6 +129,77 @@ class Layout:
         
         self.cursor_x = HSTEP
         self.line = []
+        
+class Text:
+    def __init__(self, text, parent):
+        self.text = text
+        self.children = []
+        self.parent = parent
+        
+    def __repr__(self):
+        return repr(self.text)
+    
+        
+class Element:
+    def __init__(self, tag, parent):
+        self.tag = tag
+        self.children = []
+        self.parent = parent
+    
+    def __repr__(self):
+        return "<" + self.tag + ">"
+
+class HTMLParser:
+    def __init__(self, body):
+        self.body = body
+        self.unfinished = []
+        
+    def add_text(self, text):
+        parent = self.unfinished[-1]
+        node = Text(text, parent)
+        parent.children.append(node)
+        
+    def add_tag(self, tag):
+        if tag.startswith("/"):
+            if len(self.unfinished) == 1: return
+            node = self.unfinished.pop()
+            parent = self.unfinished[-1]
+            parent.children.append(node)
+        else:
+            parent = self.unfinished[-1] if self.unfinished else None
+            node = Element(tag, parent)
+            self.unfinished.append(node)
+            
+    def finish(self):
+        while len(self.unfinished) > 1:
+            node = self.unfinished.pop()
+            parent = self.unfinished[-1]
+            parent.children.append(node)
+        return self.unfinished.pop()
+            
+    def parse(self):
+        text = ""
+        in_tag = False
+        for c in self.body:
+            if c == "<":
+                in_tag = True
+                if text: self.add_text(text)
+                text = ""
+            elif c == ">":
+                in_tag = False
+                self.add_tag(text)
+                text = ""
+            else:
+                text += c
+        if not in_tag and text:
+            self.add_text(text)
+        return self.finish()
+
+    
+def print_tree(node, indent = 0):
+    print(" " * indent, node)
+    for child in node.children:
+        print_tree(child, indent + 2)
         
 
 def getfont(size, weight, style):
@@ -224,39 +282,15 @@ class URL:
         content = response.read()
         s.close()
         return content
-    
-class Text:
-    def __init__(self, text):
-        self.text = text
-        
-class Tag:
-    def __init__(self, tag):
-        self.tag = tag
 
-def lex(body):
-    out = []
-    buffer = ""
-    in_tag = False
-    for c in body:
-        if c == "<":
-            in_tag = True
-            if buffer: out.append(Text(buffer))
-            buffer = ""
-        elif c == ">":
-            in_tag = False
-            out.append(Tag(buffer))
-            buffer = ""
-        else:
-            buffer += c
-    if not in_tag and buffer:
-        out.append(Text(buffer))
-    return out
 
 if __name__ == "__main__":
     import sys
-    # Browser(URL(sys.argv[1])).load()
-    Browser().load(URL(sys.argv[1]))
-    tkinter.mainloop()
+    body = URL(sys.argv[1]).request()
+    nodes = HTMLParser(body).parse()
+    print_tree(nodes)
+    #Browser().load(URL(sys.argv[1]))
+    #tkinter.mainloop()
     """ This enters a loop that looks like this:
     while True:
         for evt in pendingEvents():
