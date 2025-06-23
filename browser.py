@@ -141,33 +141,64 @@ class Text:
     
         
 class Element:
-    def __init__(self, tag, parent):
+    def __init__(self, tag, attributes, parent):
         self.tag = tag
+        self.attributes = attributes
         self.children = []
         self.parent = parent
     
     def __repr__(self):
         return "<" + self.tag + ">"
 
+
 class HTMLParser:
     def __init__(self, body):
         self.body = body
         self.unfinished = []
+        self.SELF_CLOSING_TAGS = ["area", "base", "br", "col", "embed", "hr", 
+                                  "img", "input", "link", "meta", "param", 
+                                  "source", "track", "wbr"]
         
     def add_text(self, text):
+        if text.isspace(): return
+        """ HTMLParser interprets HTML newlines as text and tries to add it to 
+        tree. Will not work for newline after thrown away doctype tag """
         parent = self.unfinished[-1]
         node = Text(text, parent)
         parent.children.append(node)
         
+    def get_attributes(self, text):
+        parts = text.split()
+        # we are ignoring values that contatin whitespace - more complicated
+        tag = parts[0].casefold()
+        attributes = {}
+        for attrpair in parts[1:]:
+            if "=" in attrpair:
+                key, value = attrpair.split("=", 1)
+                if len(value) > 2 and value[0] in ["'", "\""]:
+                    value = value[1:-1]
+                # strip value quotes if there are any
+                attributes[key.casefold()] = value
+            else:
+                attributes[attrpair.casefold()] = ""
+        return tag, attributes
+        
     def add_tag(self, tag):
+        tag, attributes = self.get_attributes(tag)
+        if tag.startswith("!"): return
+        # we are throwing out the doctype html tag
         if tag.startswith("/"):
             if len(self.unfinished) == 1: return
             node = self.unfinished.pop()
             parent = self.unfinished[-1]
             parent.children.append(node)
+        elif tag in self.SELF_CLOSING_TAGS:
+            parent = self.unfinished[-1]
+            node = Element(tag, attributes, parent)
+            parent.children.append(node)
         else:
             parent = self.unfinished[-1] if self.unfinished else None
-            node = Element(tag, parent)
+            node = Element(tag, attributes, parent)
             self.unfinished.append(node)
             
     def finish(self):
