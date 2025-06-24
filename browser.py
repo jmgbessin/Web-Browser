@@ -161,16 +161,36 @@ class Element:
 
 class HTMLParser:
     def __init__(self, body):
+        self.HEAD_TAGS = ["base", "basefont", "bgsound", "noscript", "link", "meta",
+                     "title", "style", "script"]
         self.body = body
         self.unfinished = []
         self.SELF_CLOSING_TAGS = ["area", "base", "br", "col", "embed", "hr", 
                                   "img", "input", "link", "meta", "param", 
                                   "source", "track", "wbr"]
         
+    def implicit_tags(self, tag):
+        while True:
+            open_tags = [node.tag for node in self.unfinished]
+            if open_tags == [] and tag != "html":
+                self.add_tag("html")
+            elif open_tags == ["html"] and tag not in ["head", "body", "/html"]:
+                if tag in self.HEAD_TAGS:
+                    self.add_tag("head")
+                else:
+                    self.add_tag("body")
+            elif open_tags == ["html", "head"] and \
+                tag not in ["/head"] + self.HEAD_TAGS:
+                self.add_tag("/head")
+            else:
+                break
+                
+    
     def add_text(self, text):
         if text.isspace(): return
         """ HTMLParser interprets HTML newlines as text and tries to add it to 
         tree. Will not work for newline after thrown away doctype tag """
+        self.implicit_tags(None)
         parent = self.unfinished[-1]
         node = Text(text, parent)
         parent.children.append(node)
@@ -195,6 +215,7 @@ class HTMLParser:
         tag, attributes = self.get_attributes(tag)
         if tag.startswith("!"): return
         # we are throwing out the doctype html tag
+        self.implicit_tags(tag)
         if tag.startswith("/"):
             if len(self.unfinished) == 1: return
             node = self.unfinished.pop()
@@ -325,9 +346,6 @@ class URL:
 
 if __name__ == "__main__":
     import sys
-    #body = URL(sys.argv[1]).request()
-    #nodes = HTMLParser(body).parse()
-    #print_tree(nodes)
     Browser().load(URL(sys.argv[1]))
     tkinter.mainloop()
     """ This enters a loop that looks like this:
