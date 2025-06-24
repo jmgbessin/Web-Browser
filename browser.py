@@ -37,6 +37,8 @@ class Browser:
     def load(self, url):
         body = url.request()
         self.nodes = HTMLParser(body).parse()
+        self.document = Layout(self.nodes)
+        self.document.layout()
         self.display_list = Layout(self.nodes).display_list
         self.draw()
         
@@ -61,19 +63,56 @@ class Browser:
         else:
             self.scrollup(e)
 
+BLOCK_ELEMENTS = ["html", "body", "article", "section", "nav", "aside", "h1", 
+                  "h2", "h3", "h4", "h5", "h6", "hgroup", "header", "footer",
+                  "address", "p", "hr", "pre", "blockquote", "ol", "ul", "menu",
+                  "li", "dl", "dt", "dd", "figure", "figcaption", "main", "div",
+                  "table", "form", "fieldset", "legend", "details", "summary"]
+# as opposed to text-related tags like <b> - taken from HTML living standard
 
-class Layout:
-    def __init__(self, dom_tree_root):
+class BlockLayout:
+    def __init__(self, node, parent, previous):
+        self.node = node
+        self.parent = parent
+        self.previous = previous
+        # Having a pointer to the previous sibling is useful
+        self.children = []
+        
         self.line = []
         self.display_list = []
-        self.cursor_x = HSTEP
-        self.cursor_y = VSTEP
-        self.weight = "normal"
-        self.style = "roman"
-        self.size = 12
         
-        self.recurse(dom_tree_root)
+    def layout_mode(self):
+        if isinstance(self.node, Text):
+            return "inline"
+        elif any([isinstance(child, Element) and \
+            child.tag in BLOCK_ELEMENTS for child in self.node.children]):
+            return "block"
+        elif self.node.children:
+            return "inline"
+        else:
+            return "block"
         
+    def layout(self):
+        mode = self.layout_mode()
+        if mode == "block":
+            previous = None
+            for child in self.node.children:
+                next = BlockLayout(child, self, previous)
+                self.children.append(next)
+                previous = next
+        else:
+            self.cursor_x = 0
+            self.cursor_y = 0
+            self.weight = "normal"
+            self.style = "roman"
+            self.size = 12
+            
+            self.line = []
+            self.recurse(self.node)
+            self.flush()
+        for child in self.children:
+            child.layout()
+    
     def open_tag(self, tag):
         if tag == "i":
             self.style = "italic"
@@ -127,6 +166,13 @@ class Layout:
         self.cursor_x = HSTEP
         self.line = []
         
+    def layout_intermediate(self):
+        previous = None
+        for child in self.node.children:
+            next = BlockLayout(child, self, previous)
+            self.children.append(next)
+            previous = next
+    
     def recurse(self, tree):
         if isinstance(tree, Text):
             for word in tree.text.split():
@@ -136,6 +182,18 @@ class Layout:
             for child in tree.children:
                 self.recurse(child)
             self.close_tag(tree.tag)
+            
+class DocumentLayout:
+    def __init__(self, node):
+        self.node = node
+        self.parent = None
+        self.children = []
+        
+    def layout(self):
+        child = BlockLayout(self.node, self, None)
+        self.children.append(child)
+        child.layout()
+        
         
         
 class Text:
@@ -184,7 +242,7 @@ class HTMLParser:
                 self.add_tag("/head")
             else:
                 break
-                
+
     
     def add_text(self, text):
         if text.isspace(): return
