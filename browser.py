@@ -37,11 +37,11 @@ class Browser:
     def load(self, url):
         body = url.request()
         self.nodes = HTMLParser(body).parse()
-        self.document = Layout(self.nodes)
+        self.document = DocumentLayout(self.nodes)
+        print_tree(self.document)
         self.document.layout()
-        self.display_list = Layout(self.nodes).display_list
         self.draw()
-        
+
     # down key or scroll event handler
     """ scrolldown is passed an event object as an argument by Tk, but since 
     scrolling down doesn't require any information about the key press besides 
@@ -78,6 +78,11 @@ class BlockLayout:
         # Having a pointer to the previous sibling is useful
         self.children = []
         
+        self.x = None
+        self.y = None
+        self.width = None
+        self.height = None
+        
         self.line = []
         self.display_list = []
         
@@ -93,6 +98,13 @@ class BlockLayout:
             return "block"
         
     def layout(self):
+        self.x = self.parent.x
+        self.width = self.parent.width
+        if self.previous:
+            self.y = self.previous.y + self.previous.height
+        else:
+            self.y = self.parent.y
+
         mode = self.layout_mode()
         if mode == "block":
             previous = None
@@ -101,6 +113,7 @@ class BlockLayout:
                 self.children.append(next)
                 previous = next
         else:
+            
             self.cursor_x = 0
             self.cursor_y = 0
             self.weight = "normal"
@@ -110,9 +123,15 @@ class BlockLayout:
             self.line = []
             self.recurse(self.node)
             self.flush()
+        
         for child in self.children:
             child.layout()
-    
+            
+        if mode == "block":
+            self.height = sum([child.height for child in self.children])
+        else:
+            self.height = self.cursor_y
+
     def open_tag(self, tag):
         if tag == "i":
             self.style = "italic"
@@ -141,29 +160,30 @@ class BlockLayout:
     def word(self, word):
         font = getfont(self.size, self.weight, self.style)
         w = font.measure(word)
-        if self.cursor_x + w > WIDTH - HSTEP:
+        if self.cursor_x + w > self.width:
             self.flush()
-        self.line.append((self.cursor_x, self.cursor_y, word, font))
+        self.line.append((self.cursor_x, word, font))
         self.cursor_x += w + font.measure(" ")
         
     def flush(self):
         if not self.line: return
         # checks for empty line list
-        metrics = [font.metrics() for x, y, word, font in self.line]
+        metrics = [font.metrics() for x, word, font in self.line]
         max_ascent = max([metric["ascent"] for metric in metrics])
         baseline = self.cursor_y + 1.25 * max_ascent
         # lowers the basline to account for different size fonts
         # 1.25 * max_ascent takes into account the leading
         
-        for x, y, word, font in self.line:
-            new_y = baseline - font.metrics("ascent")
+        for rel_x, word, font in self.line:
+            x = self.x + rel_x
+            y = self.y + baseline - font.metrics("ascent")
             # positions each word relative to the new baseline
-            self.display_list.append((x, new_y, word, font))
+            self.display_list.append((x, y, word, font))
             
         max_descent = max([metric["descent"] for metric in metrics])
         self.cursor_y = baseline + 1.25 * max_descent
         
-        self.cursor_x = HSTEP
+        self.cursor_x = 0
         self.line = []
         
     def layout_intermediate(self):
@@ -182,19 +202,29 @@ class BlockLayout:
             for child in tree.children:
                 self.recurse(child)
             self.close_tag(tree.tag)
-            
+
+
 class DocumentLayout:
     def __init__(self, node):
         self.node = node
         self.parent = None
         self.children = []
         
+        self.x = None
+        self.y = None
+        self.width = None
+        self.height = None
+        
     def layout(self):
         child = BlockLayout(self.node, self, None)
         self.children.append(child)
+
+        self.width = WIDTH - 2 * HSTEP
+        self.x = HSTEP
+        self.y = VSTEP
         child.layout()
-        
-        
+        self.height = child.height
+
         
 class Text:
     def __init__(self, text, parent):
@@ -242,7 +272,6 @@ class HTMLParser:
                 self.add_tag("/head")
             else:
                 break
-
     
     def add_text(self, text):
         if text.isspace(): return
