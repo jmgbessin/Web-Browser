@@ -38,8 +38,10 @@ class Browser:
         body = url.request()
         self.nodes = HTMLParser(body).parse()
         self.document = DocumentLayout(self.nodes)
-        print_tree(self.document)
         self.document.layout()
+        
+        self.display_list = []
+        paint_tree(self.document, self.display_list)
         self.draw()
 
     # down key or scroll event handler
@@ -203,6 +205,8 @@ class BlockLayout:
                 self.recurse(child)
             self.close_tag(tree.tag)
 
+    def paint(self):
+        return self.display_list
 
 class DocumentLayout:
     def __init__(self, node):
@@ -224,7 +228,14 @@ class DocumentLayout:
         self.y = VSTEP
         child.layout()
         self.height = child.height
+        
+    def paint(self):
+        return []
 
+def paint_tree(layout_object, display_list):
+    display_list.extend(layout_object.paint())
+    for child in layout_object.children:
+        paint_tree(child, display_list)
         
 class Text:
     def __init__(self, text, parent):
