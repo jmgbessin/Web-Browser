@@ -421,6 +421,27 @@ class HTMLParser:
         return self.finish()
 
 
+class TagSelector:
+    def __init__(self, tag):
+        self.tag = tag
+        
+    def matches(self, node):
+        return isinstance(node, Element) and self.tag == node.tag
+
+
+class DescendantSelector:
+    def __init__(self, ancestor, descendant):
+        self.ancestor = ancestor
+        self.descendant = descendant
+        
+    def matches(self, node):
+        if not self.descendant.matches(node): return False
+        while node.parent:
+            if self.ancestor.matches(node.parent): return True
+            node = node.parent
+        return False
+
+
 class CSSParser:
     def __init__(self, s):
         self.s = s
@@ -464,7 +485,7 @@ class CSSParser:
     
     def body(self):
         pairs = {}
-        while self.i < len(self.s):
+        while self.i < len(self.s) and self.s[self.i] != "}":
             """ Digital principle or robustness principle - produce maximally
             conformant output but accept even minimally conformant input - 
             different CSS might not render in different browsers, so the 
@@ -476,7 +497,7 @@ class CSSParser:
                 self.literal(";")
                 self.whitespace()
             except Exception:
-                why = self.ignore_until([";"])
+                why = self.ignore_until([";", "}"])
                 if why == ";":
                     self.literal(";")
                     self.whitespace()
@@ -484,6 +505,36 @@ class CSSParser:
                     break
                 
         return pairs
+    
+    def selector(self):
+        out = TagSelector(self.word().casefold())
+        self.whitespace()
+        while self.i < len(self.s) and self.s[self.i] != "{":
+            tag = self.word()
+            descendant = TagSelector(tag.casefold())
+            out = DescendantSelector(out, descendant)
+            self.whitespace()
+        return out
+    
+    def parse(self):
+        rules = []
+        while self.i < len(self.s):
+            try:
+                self.whitespace()
+                selector = self.selector()
+                self.literal("{")
+                self.whitespace()
+                body = self.body()
+                self.literal("}")
+                rules.append((selector, body))
+            except Exception:
+                why = self.ignore_until(["}"])
+                if why == "}":
+                    self.literal("}")
+                    self.whitespace()
+                else:
+                    break
+        return rules
     
 
 def print_tree(node, indent = 0):
