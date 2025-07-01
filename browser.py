@@ -42,6 +42,11 @@ class Browser:
             cmd.execute(self.scroll, self.canvas)
         
     def load(self, url):
+        """
+        The CSS rule that gets added last overrides the previous if it already
+        exists for a certain HTML element. Thus, in this function, CSS rules
+        get added later if theyr have higher priority
+        """
         body = url.request()
         self.nodes = HTMLParser(body).parse()
         # create an HTML tree by parsing the html body
@@ -63,15 +68,22 @@ class Browser:
             try:
                 body = style_url.request()
             except:
+                print("failed a css stylesheet connection")
                 continue
             rules.extend(CSSParser(body).parse())
         
-        style(self.nodes, rules)
-        # add CSS to nodes by looking for style attributes at each Element node
-        self.document = DocumentLayout(self.nodes)
+        # add CSS to nodes
+        """
+        Python's sorted function keeps the relative order of things with equal 
+        priority, so file order acts as a tie breaker, as it should.
+        """
+        style(self.nodes, sorted(rules, key = cascade_priority))
+        
         # create a root for the layout tree whose child is the root HTML node
-        self.document.layout()
+        self.document = DocumentLayout(self.nodes)
+        
         # create the Layout tree by a recursive mirroring of the HTML tree
+        self.document.layout()
         
         self.display_list = []
         paint_tree(self.document, self.display_list)
@@ -459,6 +471,7 @@ class HTMLParser:
 class TagSelector:
     def __init__(self, tag):
         self.tag = tag
+        self.priority = 1
         
     def matches(self, node):
         return isinstance(node, Element) and self.tag == node.tag
@@ -468,6 +481,7 @@ class DescendantSelector:
     def __init__(self, ancestor, descendant):
         self.ancestor = ancestor
         self.descendant = descendant
+        self.priority = ancestor.priority + descendant.priority
         
     def matches(self, node):
         if not self.descendant.matches(node): return False
@@ -475,6 +489,11 @@ class DescendantSelector:
             if self.ancestor.matches(node.parent): return True
             node = node.parent
         return False
+    
+    
+def cascade_priority(rule):
+    selector, body = rule
+    return selector.priority
 
 
 class CSSParser:
@@ -615,6 +634,9 @@ class URL:
         
         self.path = "/" + url
         
+    def __repr__(self):
+        return f"{self.scheme}://{self.host}:{str(self.port)}{self.path}"
+        
     # resolve a relative url
     def resolve(self, url):
         if "://" in url: return URL(url)
@@ -642,6 +664,9 @@ class URL:
         
         # connect socket to host
         s.connect((self.host, self.port))
+        print("successfully connected to following server:")
+        print(self)
+        print()
         # requires host and port - port depends on protocol used
         if self.scheme == "https":
             ctx = ssl.create_default_context()
