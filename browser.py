@@ -3,11 +3,19 @@ import ssl
 # allows for encrypted HTTPS connections
 import tkinter
 import tkinter.font
+import time
 
 WIDTH, HEIGHT = 800, 600
 HSTEP, VSTEP = 13, 18
 SCROLL_STEP = 100
 FONTS = {}
+
+def tree_to_list(tree, list):
+    list.append(tree)
+    for child in tree.children:
+        tree_to_list(child, list)
+    return list
+
 
 class Browser:
     def __init__(self):
@@ -37,7 +45,28 @@ class Browser:
         body = url.request()
         self.nodes = HTMLParser(body).parse()
         # create an HTML tree by parsing the html body
-        style(self.nodes)
+        rules = DEFAULT_STYLE_SHEET.copy()
+        
+        # retrieve stylesheet links from HTML document
+        # goes after the default style sheet to override its properties
+        # thanks to the way the paint method is implemented
+        # try except ignores stylesheets that failed to download but may hide
+        # bugs
+        links = [node.attributes["href"] 
+                 for node in tree_to_list(self.nodes, [])
+                 if isinstance(node, Element)
+                 and node.tag == "link"
+                 and node.attributes.get("rel") == "stylesheet"
+                 and "href" in node.attributes]
+        for link in links:
+            style_url = url.resolve(link)
+            try:
+                body = style_url.request()
+            except:
+                continue
+            rules.extend(CSSParser(body).parse())
+        
+        style(self.nodes, rules)
         # add CSS to nodes by looking for style attributes at each Element node
         self.document = DocumentLayout(self.nodes)
         # create a root for the layout tree whose child is the root HTML node
@@ -289,14 +318,20 @@ class DocumentLayout:
         return []
 
 
-def style(node):
+def style(node, rules):
     node.style = {}
+    for selector, body in rules:
+        if not selector.matches(node): continue
+        for property, value in body.items():
+            node.style[property] = value
+    # stylings that come from CSS file
     if isinstance(node, Element) and "style" in node.attributes:
         pairs = CSSParser(node.attributes["style"]).body()
         for property, value in pairs.items():
             node.style[property] = value
+    # stylings that come from HTML "style" tag attrribute
     for child in node.children:
-        style(child)
+        style(child, rules)
 
 def paint_tree(layout_object, display_list):
     display_list.extend(layout_object.paint())
@@ -537,6 +572,9 @@ class CSSParser:
         return rules
     
 
+DEFAULT_STYLE_SHEET = CSSParser(open("browser.css").read()).parse()
+# default browser stylesheet
+
 def print_tree(node, indent = 0):
     print(" " * indent, node)
     for child in node.children:
@@ -576,6 +614,22 @@ class URL:
             self.port = int(port)
         
         self.path = "/" + url
+        
+    # resolve a relative url
+    def resolve(self, url):
+        if "://" in url: return URL(url)
+        if not url.startswith("/"):
+            dir, _ = self.path.rsplit("/", 1)
+            while url.startswith("../"):
+                _, url = url.split("/", 1)
+                if "/" in dir:
+                    dir, _ = dir.rsplit("/", 1)
+            url = dir + "/" + url
+        if url.startswith("//"):
+            return URL(self.scheme + ":" + url)
+        else:
+            return  URL(self.scheme + "://" + self.host + \
+                ":" + str(self.port) + url)
         
     def request(self):
         # create socket
@@ -627,6 +681,7 @@ class URL:
 
 if __name__ == "__main__":
     import sys
+    time.sleep(0.5)
     Browser().load(URL(sys.argv[1]))
     tkinter.mainloop()
     """ This enters a loop that looks like this:
