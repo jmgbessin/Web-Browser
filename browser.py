@@ -23,7 +23,8 @@ class Browser:
         self.canvas = tkinter.Canvas(
             self.window,
             width = WIDTH,
-            height = HEIGHT
+            height = HEIGHT,
+            bg = "white"
         )
         self.canvas.pack()
         # tkinter peculiarity: packs the canvas within the window
@@ -248,6 +249,8 @@ class BlockLayout:
             
     def word(self, node, word):
         color = node.style["color"]
+        if color == "#04a":
+            print("received a blue font color command")
         weight = node.style["font-weight"]
         style = node.style["font-style"]
         if style == "normal": style = "roman"
@@ -297,6 +300,12 @@ class BlockLayout:
             for child in node.children:
                 self.recurse(child)
             self.close_tag(node.tag)
+            """
+            if node.tag == "br":
+                self.flush()
+            for child in node.children:
+                self.recurse(child)
+            """
 
     def paint(self):
         cmds = []
@@ -704,9 +713,6 @@ class URL:
         
         # connect socket to host
         s.connect((self.host, self.port))
-        print("successfully connected to following server:")
-        print(self)
-        print()
         # requires host and port - port depends on protocol used
         if self.scheme == "https":
             ctx = ssl.create_default_context()
