@@ -296,16 +296,10 @@ class BlockLayout:
             for word in node.text.split():
                 self.word(node, word)
         else:
-            self.open_tag(node.tag)
-            for child in node.children:
-                self.recurse(child)
-            self.close_tag(node.tag)
-            """
             if node.tag == "br":
                 self.flush()
             for child in node.children:
                 self.recurse(child)
-            """
 
     def paint(self):
         cmds = []
