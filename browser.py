@@ -19,6 +19,9 @@ def tree_to_list(tree, list):
 
 class Browser:
     def __init__(self):
+        self.tabs = []
+        self.active_tab = None
+        
         self.window = tkinter.Tk()
         self.canvas = tkinter.Canvas(
             self.window,
@@ -26,24 +29,53 @@ class Browser:
             height = HEIGHT,
             bg = "white"
         )
-        self.canvas.pack()
         # tkinter peculiarity: packs the canvas within the window
-        self.scroll = 0
+        self.canvas.pack()
         
-        self.window.bind("<Down>", self.scrolldown)
+        self.window.bind("<Down>", self.handle_down)
         # binds a function to a specific keyboard key through tkinter
-        self.window.bind("<Up>", self.scrollup)
-        self.window.bind("<MouseWheel>", self.mousescroll)
-        self.window.bind("<Button-1>", self.click)
-        
-        self.url = None
+        self.window.bind("<Up>", self.handle_up)
+        self.window.bind("<MouseWheel>", self.handle_scroll)
+        self.window.bind("<Button-1>", self.handle_click)
         
     def draw(self):
         self.canvas.delete("all")
+        self.active_tab.draw(self.canvas)
+        
+    def new_tab(self, url):
+        new_tab = Tab()
+        new_tab.load(url)
+        self.active_tab = new_tab
+        self.tabs.append(new_tab)
+        self.draw()
+        
+    def handle_down(self, e):
+        self.active_tab.scrolldown()
+        self.draw()
+        
+    def handle_up(self, e):
+        self.active_tab.scrollup()
+        self.draw()
+        
+    def handle_scroll(self, e):
+        self.active_tab.mousescroll(e.delta)
+        self.draw()
+        
+    def handle_click(self, e):
+        self.active_tab.click(e.x, e.y)
+        self.draw()
+
+
+class Tab:
+    def __init__(self):
+        self.scroll = 0
+        self.url = None
+        
+    def draw(self, canvas):
         for cmd in self.display_list:
             if cmd.top > self.scroll + HEIGHT: continue
             if cmd.bottom < self.scroll: continue
-            cmd.execute(self.scroll, self.canvas)
+            cmd.execute(self.scroll, canvas)
         
     def load(self, url):
         """
@@ -95,32 +127,28 @@ class Browser:
         paint_tree(self.document, self.display_list)
         # aggregates all the display_lists, containing commands, for each 
         # layout block
-        self.draw()
 
     # down key or scroll event handler
     """ scrolldown is passed an event object as an argument by Tk, but since 
     scrolling down doesn't require any information about the key press besides 
     the fact that it happened, scrolldown ignores that event object. """
-    def scrolldown(self, e):
+    def scrolldown(self):
         max_y = max(self.document.height + 2 * VSTEP - HEIGHT, 0)
         self.scroll = min(self.scroll + SCROLL_STEP, max_y)
-        self.draw()
         
-    def scrollup(self, e):
+    def scrollup(self):
         if self.scroll < SCROLL_STEP:
             self.scroll = 0
         else:
             self.scroll -= SCROLL_STEP
-        self.draw()
         
-    def mousescroll(self, e):
-        if e.delta < 0:
-            self.scrolldown(e)
+    def mousescroll(self, delta):
+        if delta < 0:
+            self.scrolldown()
         else:
-            self.scrollup(e)
+            self.scrollup()
             
-    def click(self, e):
-        x, y = e.x, e.y
+    def click(self, x, y):
         y += self.scroll
         
         objs = [obj for obj in tree_to_list(self.document, [])
@@ -828,7 +856,7 @@ class URL:
 if __name__ == "__main__":
     import sys
     time.sleep(0.5)
-    Browser().load(URL(sys.argv[1]))
+    Browser().new_tab(URL(sys.argv[1]))
     tkinter.mainloop()
     """ This enters a loop that looks like this:
     while True:
