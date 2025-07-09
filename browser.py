@@ -51,6 +51,7 @@ class Browser:
         exists for a certain HTML element. Thus, in this function, CSS rules
         get added later if theyr have higher priority
         """
+        self.scroll = 0
         self.url = url
         body = url.request()
         self.nodes = HTMLParser(body).parse()
@@ -316,6 +317,7 @@ class BlockLayout:
                 self.word(node, word)
         else:
             if node.tag == "br":
+                print("br tag new line")
                 self.new_line()
             for child in node.children:
                 self.recurse(child)
