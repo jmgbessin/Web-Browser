@@ -34,6 +34,9 @@ class Browser:
         # binds a function to a specific keyboard key through tkinter
         self.window.bind("<Up>", self.scrollup)
         self.window.bind("<MouseWheel>", self.mousescroll)
+        self.window.bind("<Button-1>", self.click)
+        
+        self.url = None
         
     def draw(self):
         self.canvas.delete("all")
@@ -48,6 +51,7 @@ class Browser:
         exists for a certain HTML element. Thus, in this function, CSS rules
         get added later if theyr have higher priority
         """
+        self.url = url
         body = url.request()
         self.nodes = HTMLParser(body).parse()
         # create an HTML tree by parsing the html body
@@ -113,6 +117,27 @@ class Browser:
             self.scrolldown(e)
         else:
             self.scrollup(e)
+            
+    def click(self, e):
+        x, y = e.x, e.y
+        y += self.scroll
+        
+        objs = [obj for obj in tree_to_list(self.document, [])
+                if obj.x <= x < obj.x + obj.width
+                and obj.y <= y < obj.y + obj.height]
+        if not objs: return
+        
+        # we go to the end of the list because we want the most specific element
+        # that was clicked
+        elt = objs[-1].node
+        
+        while elt:
+            if isinstance(elt, Text):
+                pass
+            elif elt.tag == "a" and "href" in elt.attributes:
+                url = self.url.resolve(elt.attributes["href"])
+                return self.load(url)
+            elt = elt.parent
 
 
 class DrawText:
@@ -252,9 +277,7 @@ class BlockLayout:
         w = font.measure(word)
         if self.cursor_x + w > self.width:
             self.new_line()
-        
-        # self.cursor_x += w + font.measure(" ") -- need this?
-        
+                
         # the current line is the last LineLayout child of BlockLayout
         line = self.children[-1]
         previous_word = line.children[-1] if line.children else None
@@ -268,7 +291,7 @@ class BlockLayout:
         self.children.append(new_line)
         
     def flush(self):
-        if not self.line: return
+        if not self.children: return
         # checks for empty line list
         metrics = [font.metrics() for x, word, font, color in self.line]
         
