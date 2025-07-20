@@ -5,8 +5,6 @@ import tkinter
 import tkinter.font
 import time
 
-"""Be careful with rect fields in drawline, drawtext..."""
-
 WIDTH, HEIGHT = 800, 600
 HSTEP, VSTEP = 13, 18
 SCROLL_STEP = 100
@@ -71,7 +69,7 @@ class Browser:
         if e.y < self.chrome.bottom:
             self.chrome.click(e.x, e.y)
         else:
-            tab_y = e.y - self.bottom.chrome
+            tab_y = e.y - self.chrome.bottom
             self.active_tab.click(e.x, tab_y)
         self.draw()
         
@@ -91,9 +89,27 @@ class Chrome:
             self.padding + self.plus_width,
             self.padding + self.font_height
         )
-        
-        self.bottom = self.tabbar_bottom
-        
+                
+        self.urlbar_top = self.tabbar_bottom
+        self.urlbar_bottom = self.urlbar_top + self.font_height + \
+            2 * self.padding
+            
+        back_width = self.font.measure("<") + 2 * self.padding
+        self.back_rect = Rect(
+            self.padding,
+            self.urlbar_top + self.padding,
+            self.padding + back_width,
+            self.urlbar_bottom - self.padding
+        )
+        self.address_rect = Rect(
+            self.back_rect.top + self.padding,
+            self.urlbar_top + self.padding,
+            WIDTH - self.padding,
+            self.urlbar_bottom - self.padding
+        )
+            
+        self.bottom = self.urlbar_bottom
+
     def tab_rect(self, i):
         tabs_start = self.newtab_rect.right + self.padding
         self.tab_width = self.font.measure("Tab X") + 2 * self.padding
@@ -116,12 +132,8 @@ class Chrome:
         
         cmds.append(DrawOutline(self.newtab_rect, "black", 1))
         cmds.append(DrawText(
-            Rect(self.newtab_rect.left + self.padding,
+            self.newtab_rect.left + self.padding,
             self.newtab_rect.top,
-            self.newtab_rect.left + self.padding + 
-            self.plus_width - 2 * self.padding,
-            self.newtab_rect.top + self.font_height
-            ),
             "+", self.font, "black"
         ))
         
@@ -134,11 +146,7 @@ class Chrome:
                 bounds.right, 0, bounds.right, bounds.bottom, "black", 1
             ))
             cmds.append(DrawText(
-                Rect(
-                    bounds.left + self.padding, bounds.top + self.padding,
-                    bounds.left + self.padding + self.tab_width,
-                    bounds.top + self.padding + self.font_height
-                    ),
+                bounds.left + self.padding, bounds.top + self.padding,
                 "Tab {}".format(i), self.font, "black"
             ))
             
@@ -150,6 +158,22 @@ class Chrome:
                     bounds.right, bounds.bottom, WIDTH, bounds.bottom, 
                     "black", 1
                 ))
+                
+            cmds.append(DrawOutline(self.back_rect, "black", 1))
+            cmds.append(DrawText(
+                self.back_rect.left + self.padding,
+                self.back_rect.top,
+                "<", self.font, "black" 
+            ))
+            
+            cmds.append(DrawOutline(self.address_rect, "black", 1))
+            url = str(self.browser.active_tab.url)
+            cmds.append(DrawText(
+                self.address_rect.left + self.padding,
+                self.address_rect.top,
+                url, self.font, "black"
+            ))
+            
         return cmds
     
     def click(self, x, y):
@@ -308,12 +332,13 @@ class Tab:
 
 
 class DrawText:
-    def __init__(self, rect, text, font, color):
-        self.rect = rect
+    def __init__(self, x, y, text, font, color):
+        self.rect = Rect(
+            x, y, x + font.measure(text), 
+            y + font.metrics("linespace"))
         self.text = text
         self.font = font
         self.color = color
-        self.bottom = self.rect.top + font.metrics("linespace")
     
     def execute(self, scroll, canvas):
         canvas.create_text(
@@ -584,10 +609,7 @@ class TextLayout:
         
     def paint(self):
         color = self.node.style["color"]
-        return [DrawText(Rect(
-            self.x, self.y, 
-            self.x + self.font.measure(self.word),
-            self.y + self.height), self.word, self.font, color)]
+        return [DrawText(self.x, self.y, self.word, self.font, color)]
 
 
 def style(node, rules):
@@ -928,6 +950,14 @@ class URL:
         
     def __repr__(self):
         return f"{self.scheme}://{self.host}:{str(self.port)}{self.path}"
+    
+    def __str__(self):
+        port_part = ":" + str(self.port)
+        if self.scheme == "https" and self.port == 443:
+            port_part = ""
+        if self.scheme == "http" and self.port == 80:
+            port_part = ""
+        return self.scheme + "://" + self.host + port_part + self.path
         
     # resolve a relative url
     def resolve(self, url):
