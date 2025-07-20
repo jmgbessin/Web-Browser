@@ -179,6 +179,8 @@ class Chrome:
     def click(self, x, y):
         if self.newtab_rect.contains_point(x, y):
             self.browser.new_tab(URL("https://browser.engineering/"))
+        elif self.back_rect.contains_point(x, y):
+            self.browser.active_tab.go_back()
         else:
             for i, tab in enumerate(self.browser.tabs):
                 if self.tab_rect(i).contains_point(x, y):
@@ -232,6 +234,7 @@ class Tab:
         self.scroll = 0
         self.url = None
         self.tab_height = tab_height
+        self.history = []
         
     def draw(self, canvas, offset):
         for cmd in self.display_list:
@@ -247,6 +250,7 @@ class Tab:
         """
         self.scroll = 0
         self.url = url
+        self.history.append(url)
         body = url.request()
         self.nodes = HTMLParser(body).parse()
         # create an HTML tree by parsing the html body
@@ -289,6 +293,12 @@ class Tab:
         paint_tree(self.document, self.display_list)
         # aggregates all the display_lists, containing commands, for each 
         # layout block
+        
+    def go_back(self):
+        if len(self.history) > 1:
+            self.history.pop()
+            back = self.history.pop()
+            self.load(back)
 
     # down key or scroll event handler
     """ scrolldown is passed an event object as an argument by Tk, but since 
