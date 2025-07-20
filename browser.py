@@ -37,6 +37,8 @@ class Browser:
         self.window.bind("<Up>", self.handle_up)
         self.window.bind("<MouseWheel>", self.handle_scroll)
         self.window.bind("<Button-1>", self.handle_click)
+        self.window.bind("<Key>", self.handle_key)
+        self.window.bind("<Return>", self.handle_enter)
         
         self.chrome = Chrome(self)
         
@@ -66,12 +68,24 @@ class Browser:
         self.draw()
         
     def handle_click(self, e):
+        self.chrome.focus = None
         if e.y < self.chrome.bottom:
             self.chrome.click(e.x, e.y)
         else:
             tab_y = e.y - self.chrome.bottom
             self.active_tab.click(e.x, tab_y)
         self.draw()
+        
+    def handle_key(self, e):
+        if len(e.char) == 0: return
+        if not (0x20 <= ord(e.char) < 0x7f): return
+        self.chrome.keypress(e.char)
+        self.draw()
+        
+    def handle_enter(self, e):
+        self.chrome.enter()
+        self.draw()
+
         
 # Browser UI is complicated, so we are using a Chrome helper class
 class Chrome:
@@ -82,6 +96,10 @@ class Chrome:
         self.padding = 5
         self.tabbar_top = 0
         self.tabbar_bottom = self.font_height + 2 * self.padding
+        
+        # represents state of address bar
+        self.focus = None
+        self.address_bar = ""
         
         self.plus_width = self.font.measure("+") + 2 * self.padding
         self.newtab_rect = Rect(
@@ -167,12 +185,29 @@ class Chrome:
             ))
             
             cmds.append(DrawOutline(self.address_rect, "black", 1))
-            url = str(self.browser.active_tab.url)
-            cmds.append(DrawText(
-                self.address_rect.left + self.padding,
-                self.address_rect.top,
-                url, self.font, "black"
-            ))
+            if self.focus == "address bar":
+                cmds.append(DrawText(
+                    self.address_rect.left + self.padding,
+                    self.address_rect.top,
+                    self.address_bar, self.font, "black"
+                ))
+                
+                w = self.font.measure(self.address_bar)
+                cmds.append(DrawLine(
+                    self.address_rect.left + self.padding + w,
+                    self.address_rect.top,
+                    self.address_rect.left + self.padding + w,
+                    self.address_rect.bottom,
+                    "red", 1
+                ))
+            else:
+                url = str(self.browser.active_tab.url)
+                cmds.append(DrawText(
+                    self.address_rect.left + self.padding,
+                    self.address_rect.top,
+                    url, self.font, "black"
+                ))
+                
             
         return cmds
     
@@ -181,11 +216,23 @@ class Chrome:
             self.browser.new_tab(URL("https://browser.engineering/"))
         elif self.back_rect.contains_point(x, y):
             self.browser.active_tab.go_back()
+        elif self.address_rect.contains_point(x, y):
+            self.focus = "address bar"
+            self.address_bar = ""
         else:
             for i, tab in enumerate(self.browser.tabs):
                 if self.tab_rect(i).contains_point(x, y):
                     self.browser.active_tab = tab
                     break
+                
+    def keypress(self, char):
+        if self.focus == "address bar":
+            self.address_bar += char
+            
+    def enter(self):
+        if self.focus == "address bar":
+            self.browser.active_tab.load(URL(self.address_bar))
+            self.focus = None
     
     
 class DrawOutline:
