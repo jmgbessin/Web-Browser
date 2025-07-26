@@ -2,7 +2,7 @@ from htmlparser import HTMLParser, Element, Text
 from style import *
 from utils import *
 from layout import DocumentLayout
-
+import urllib.parse
 
 DEFAULT_STYLE_SHEET = CSSParser(open("browser.css").read()).parse()
 # default browser stylesheet
@@ -21,7 +21,7 @@ class Tab:
             if cmd.rect.bottom < self.scroll: continue
             cmd.execute(self.scroll - offset, canvas)
         
-    def load(self, url):
+    def load(self, url, payload = None):
         """
         The CSS rule that gets added last overrides the previous if it already
         exists for a certain HTML element. Thus, in this function, CSS rules
@@ -30,7 +30,7 @@ class Tab:
         self.scroll = 0
         self.url = url
         self.history.append(url)
-        body = url.request()
+        body = url.request(payload)
         self.nodes = HTMLParser(body).parse()
         # create an HTML tree by parsing the html body
         self.rules = DEFAULT_STYLE_SHEET.copy()
@@ -81,6 +81,29 @@ class Tab:
             self.history.pop()
             back = self.history.pop()
             self.load(back)
+            
+    def submit_form(self, elt):
+        inputs = [
+            node for node in tree_to_list(elt, []) 
+            if isinstance(node, Element)
+            and node.tag == "input"
+            and "name" in node.attributes]
+        
+        body = ""
+        for input in inputs:
+            name = input.attributes["name"]
+            value = input.attributes.get("value", "")
+            
+            # percent encodes name and value to avoid running into trouble
+            # with the characters & and =
+            name = urllib.parse.quote(name)
+            value = urllib.parse.quote(value)
+            
+            body += "&" + name + "=" + value
+        body = body[1:]
+        
+        url = self.url.resolve(elt.attributes["action"])
+        self.load(url, body)
 
     # down key or scroll event handler
     """ scrolldown is passed an event object as an argument by Tk, but since 
@@ -128,6 +151,11 @@ class Tab:
                 elt.attributes["value"] = ""
                 elt.is_focused = True
                 return self.render()
+            elif elt.tag == "button":
+                while elt:
+                    if elt.tag == "form" and "action" in elt.attributes:
+                        return self.submit_form(elt)
+                    elt = elt.parent
             elt = elt.parent
         self.render()
         
