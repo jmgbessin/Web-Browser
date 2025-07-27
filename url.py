@@ -69,7 +69,13 @@ class URL:
         method = "POST" if payload else "GET"
         request = "{} {} HTTP/1.0\r\n".format(method, self.path)
         request += "Host: {}\r\n".format(self.host)
+        # If it's a POST request the Content-Length header is mandatory
+        if payload:
+            # Content-Length is payload in bytes
+            length = len(payload.encode("utf8"))
+            request += "Content-Length: {}\r\n".format(length)
         request += "\r\n"
+        if payload: request += payload
         s.send(request.encode("utf8"))
         
         # get server response

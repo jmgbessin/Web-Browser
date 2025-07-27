@@ -3,6 +3,8 @@ from style import *
 from utils import *
 from layout import DocumentLayout
 import urllib.parse
+from JSContext import JSContext
+import dukpy
 
 DEFAULT_STYLE_SHEET = CSSParser(open("browser.css").read()).parse()
 # default browser stylesheet
@@ -22,6 +24,29 @@ class Tab:
             cmd.execute(self.scroll - offset, canvas)
         
     def load(self, url, payload = None):
+        
+        # Downloading javascript scripts
+        scripts = [
+            node.attributes["src"] for node
+            in tree_to_list(self.nodes, [])
+            if isinstance(node, Element)
+            and node.tag == "script"
+            and "src" in node.attributes]
+        
+        self.js = JSContext()
+        for script in scripts:
+            script_url = url.resolve(script)
+            try:
+                body = script_url.request()
+            except:
+                continue
+            self.js.run(body)
+        print("Script returned: ", dukpy.evaljs(body))
+        
+        
+        
+            
+        
         """
         The CSS rule that gets added last overrides the previous if it already
         exists for a certain HTML element. Thus, in this function, CSS rules
