@@ -8,4 +8,7 @@ class JSContext:
         self.interp.export_function("log", print)
         
     def run(self, code):
-        return self.interp.evaljs(code)
+        try:
+            return self.interp.evaljs(code)
+        except dukpy.JSInterpreter as e:
+            print("Script", script, "crashed", e)

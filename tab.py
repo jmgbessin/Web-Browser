@@ -3,7 +3,7 @@ from style import *
 from utils import *
 from layout import DocumentLayout
 import urllib.parse
-from JSContext import JSContext
+from javascript import JSContext
 import dukpy
 
 DEFAULT_STYLE_SHEET = CSSParser(open("browser.css").read()).parse()
