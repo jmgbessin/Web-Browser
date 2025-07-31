@@ -6,7 +6,7 @@ ENTRIES = ['Pavel was here']
 def handle_connection(conx):
     # the request line
     req = conx.makefile("b")
-    reqline = req.readline().decode('utf8', errors = "ignore")
+    reqline = req.readline().decode('utf8')
     method, url, version = reqline.split(" ", 2)
     assert method in ["GET", "POST"]
     
@@ -23,6 +23,9 @@ def handle_connection(conx):
     else:
         body = None
         
+    print("do_request:\n")
+    print(do_request(method, url, headers, body))
+    print("\n")
     status, body = do_request(method, url, headers, body)
     
     response = "HTTP/1.0 {}\r\n".format(status)
@@ -58,15 +61,20 @@ def do_request(method, url, headers, body):
     elif method == "POST" and url == "/add":
         params = form_decode(body)
         return "200 OK", add_entry(params)
+    elif method == "GET" and url == "/comment.js":
+        with open("comment.js") as f:
+            return "200 OK", f.read()
     else:
         return "404 Not Found"    
 
 def show_comments():
     out = "<!doctype html>"
+    out += "<script src=/comment.js></script>"
     out += "<form action=add method=post>"
     out += "<p><input name=guest></p>"
     out += "<p><button>Sign the book!</button></p>"
     out += "</form>"
+    out += "<strong></strong>"
     for entry in ENTRIES:
         out += "<p>" + entry + "</p>"
     return out

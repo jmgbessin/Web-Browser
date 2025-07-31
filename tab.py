@@ -24,6 +24,12 @@ class Tab:
             cmd.execute(self.scroll - offset, canvas)
         
     def load(self, url, payload = None):
+        self.scroll = 0
+        self.url = url
+        self.history.append(url)
+        body = url.request(payload)
+        # create an HTML tree by parsing the html body
+        self.nodes = HTMLParser(body).parse()
         
         # Downloading javascript scripts
         scripts = [
@@ -33,33 +39,23 @@ class Tab:
             and node.tag == "script"
             and "src" in node.attributes]
         
-        self.js = JSContext()
+        self.js = JSContext(self)
         for script in scripts:
             script_url = url.resolve(script)
             try:
                 body = script_url.request()
             except:
                 continue
-            self.js.run(body)
+            self.js.run(script, body)
         print("Script returned: ", dukpy.evaljs(body))
         
-        
-        
-            
+        self.rules = DEFAULT_STYLE_SHEET.copy()
         
         """
         The CSS rule that gets added last overrides the previous if it already
         exists for a certain HTML element. Thus, in this function, CSS rules
-        get added later if theyr have higher priority
+        get added later if they have higher priority
         """
-        self.scroll = 0
-        self.url = url
-        self.history.append(url)
-        body = url.request(payload)
-        self.nodes = HTMLParser(body).parse()
-        # create an HTML tree by parsing the html body
-        self.rules = DEFAULT_STYLE_SHEET.copy()
-        
         # retrieve stylesheet links from HTML document
         # goes after the default style sheet to override its properties
         # thanks to the way the paint method is implemented
@@ -108,6 +104,7 @@ class Tab:
             self.load(back)
             
     def submit_form(self, elt):
+        self.js.dispatch_event("submit", elt)
         inputs = [
             node for node in tree_to_list(elt, []) 
             if isinstance(node, Element)
@@ -169,14 +166,17 @@ class Tab:
             if isinstance(elt, Text):
                 pass
             elif elt.tag == "a" and "href" in elt.attributes:
+                self.js.dispatch_event("click", elt)
                 url = self.url.resolve(elt.attributes["href"])
                 return self.load(url)
             elif elt.tag == "input":
+                self.js.dispatch_event("click", elt)
                 self.focus = elt
                 elt.attributes["value"] = ""
                 elt.is_focused = True
                 return self.render()
             elif elt.tag == "button":
+                self.js.dispatch_event("click", elt)
                 while elt:
                     if elt.tag == "form" and "action" in elt.attributes:
                         return self.submit_form(elt)
@@ -186,5 +186,6 @@ class Tab:
         
     def keypress(self, char):
         if self.focus:
+            self.js.dispatch_event("keydown", self.focus)
             self.focus.attributes["value"] += char
             self.render()
