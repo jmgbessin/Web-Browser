@@ -3,8 +3,6 @@ from style import *
 from utils import *
 from layout import DocumentLayout
 import urllib.parse
-from javascript import JSContext
-import dukpy
 
 DEFAULT_STYLE_SHEET = CSSParser(open("browser.css").read()).parse()
 # default browser stylesheet
@@ -39,15 +37,12 @@ class Tab:
             and node.tag == "script"
             and "src" in node.attributes]
         
-        self.js = JSContext(self)
         for script in scripts:
             script_url = url.resolve(script)
             try:
                 body = script_url.request()
             except:
                 continue
-            self.js.run(script, body)
-        print("Script returned: ", dukpy.evaljs(body))
         
         self.rules = DEFAULT_STYLE_SHEET.copy()
         

@@ -69,7 +69,6 @@ def do_request(method, url, headers, body):
 
 def show_comments():
     out = "<!doctype html>"
-    out += "<script src=/comment.js></script>"
     out += "<form action=add method=post>"
     out += "<p><input name=guest></p>"
     out += "<p><button>Sign the book!</button></p>"
