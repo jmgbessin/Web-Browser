@@ -50,6 +50,8 @@ class BlockLayout:
 
         mode = self.layout_mode()
         if mode == "block":
+            if self.node.tag == "button":
+                pass
             previous = None
             for child in self.node.children:
                 next = BlockLayout(child, self, previous)
@@ -94,27 +96,6 @@ class BlockLayout:
         elif tag == "p":
             self.flush()
             self.cursor_y += VSTEP
-            
-    def word(self, node, word):
-        color = node.style["color"]
-        if color == "#04a":
-            print("received a blue font color command")
-        weight = node.style["font-weight"]
-        style = node.style["font-style"]
-        if style == "normal": style = "roman"
-        # CSS pixels are converted to Tk points, hence the .75 constant
-        size = int(float(node.style["font-size"][:-2]) * .75)
-        font = getfont(size, weight, style)
-        w = font.measure(word)
-        if self.cursor_x + w > self.width:
-            self.new_line()
-                
-        # the current line is the last LineLayout child of BlockLayout
-        line = self.children[-1]
-        previous_word = line.children[-1] if line.children else None
-        text = TextLayout(node, word, line, previous_word)
-        line.children.append(text)
-        self.cursor_x += w + font.measure(" ")
         
     def new_line(self):
         self.cursor_x = 0
@@ -153,6 +134,27 @@ class BlockLayout:
                 self.input(node)
             for child in node.children:
                 self.recurse(child)
+                
+    def word(self, node, word):
+        color = node.style["color"]
+        if color == "#04a":
+            print("received a blue font color command")
+        weight = node.style["font-weight"]
+        style = node.style["font-style"]
+        if style == "normal": style = "roman"
+        # CSS pixels are converted to Tk points, hence the .75 constant
+        size = int(float(node.style["font-size"][:-2]) * .75)
+        font = getfont(size, weight, style)
+        w = font.measure(word)
+        if self.cursor_x + w > self.width:
+            self.new_line()
+                
+        # the current line is the last LineLayout child of BlockLayout
+        line = self.children[-1]
+        previous_word = line.children[-1] if line.children else None
+        text = TextLayout(node, word, line, previous_word)
+        line.children.append(text)
+        self.cursor_x += w + font.measure(" ")
                 
     def input(self, node):
         w = INPUT_WIDTH_PX
