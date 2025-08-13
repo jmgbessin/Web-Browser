@@ -22,6 +22,9 @@ class BlockLayout:
         self.width = None
         self.height = None
         
+    def __repr__(self):
+        return self.node.tag
+        
     def self_rect(self):
         return Rect(self.x, self.y, self.x + self.width, self.y + self.height)
         
@@ -50,8 +53,7 @@ class BlockLayout:
 
         mode = self.layout_mode()
         if mode == "block":
-            if self.node.tag == "button":
-                pass
+            
             previous = None
             for child in self.node.children:
                 next = BlockLayout(child, self, previous)
@@ -132,8 +134,9 @@ class BlockLayout:
                 self.new_line()
             elif node.tag == "input" or node.tag == "button":
                 self.input(node)
-            for child in node.children:
-                self.recurse(child)
+            if isinstance(node, Element) and not node.tag == "button":
+                for child in node.children:
+                    self.recurse(child)
                 
     def word(self, node, word):
         color = node.style["color"]
@@ -220,6 +223,9 @@ class LineLayout:
         self.previous = previous
         self.children = []
         
+    def __repr__(self):
+        return "line"
+        
     def layout(self):
         self.width = self.parent.width
         self.x = self.parent.x
@@ -256,6 +262,9 @@ class TextLayout:
         self.children = []
         self.parent = parent
         self.previous = previous
+        
+    def __repr__(self):
+        return self.word
         
     def layout(self):
         weight = self.node.style["font-weight"]

@@ -29,6 +29,11 @@ class Tab:
         # create an HTML tree by parsing the html body
         self.nodes = HTMLParser(body).parse()
         
+        print()
+        print("HTML tree:")
+        print_tree(self.nodes)
+        print()
+        
         # Downloading javascript scripts
         scripts = [
             node.attributes["src"] for node
@@ -86,6 +91,8 @@ class Tab:
         
         # create the Layout tree by a recursive mirroring of the HTML tree
         self.document.layout()
+        
+        print_tree(self.document)
         
         # aggregates all the display_lists, containing commands, for each 
         # layout block

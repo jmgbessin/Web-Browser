@@ -78,6 +78,8 @@ class HTMLParser:
         # we are throwing out the doctype html tag
         self.implicit_tags(tag)
         if tag.startswith("/"):
+            if tag == "/button":
+                print("button")
             if len(self.unfinished) == 1: return
             node = self.unfinished.pop()
             parent = self.unfinished[-1]
