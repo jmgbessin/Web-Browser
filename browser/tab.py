@@ -3,6 +3,7 @@ from style import *
 from utils import *
 from layout import DocumentLayout
 import urllib.parse
+import dukpy
 
 DEFAULT_STYLE_SHEET = CSSParser(open("browser.css").read()).parse()
 # default browser stylesheet
@@ -29,6 +30,9 @@ class Tab:
         # create an HTML tree by parsing the html body
         self.nodes = HTMLParser(body).parse()
         
+        print("DOM:")
+        print_tree(self.nodes)
+        
         # Downloading javascript scripts
         scripts = [
             node.attributes["src"] for node
@@ -43,6 +47,7 @@ class Tab:
                 body = script_url.request()
             except:
                 continue
+            print("Script returned: ", dukpy.evaljs(body))
         
         self.rules = DEFAULT_STYLE_SHEET.copy()
         
