@@ -10,7 +10,7 @@
             "request": "launch",
             "program": "${workspaceFolder}/browser.py",
             "console": "integratedTerminal",
-            "args": ["http://localhost:8000"]
+            "args": ["https://browser.engineering/html.html"]
         }
     ]
 }

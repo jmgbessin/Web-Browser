@@ -4,6 +4,7 @@ from utils import *
 from layout import DocumentLayout
 import urllib.parse
 import dukpy
+from javascript import JSContext
 
 DEFAULT_STYLE_SHEET = CSSParser(open("browser.css").read()).parse()
 # default browser stylesheet
@@ -30,9 +31,6 @@ class Tab:
         # create an HTML tree by parsing the html body
         self.nodes = HTMLParser(body).parse()
         
-        print("DOM:")
-        print_tree(self.nodes)
-        
         # Downloading javascript scripts
         scripts = [
             node.attributes["src"] for node
@@ -41,13 +39,15 @@ class Tab:
             and node.tag == "script"
             and "src" in node.attributes]
         
+        self.js = JSContext()
         for script in scripts:
             script_url = url.resolve(script)
             try:
                 body = script_url.request()
             except:
                 continue
-            print("Script returned: ", dukpy.evaljs(body))
+            #self.js.run(body)
+            #print("Script returned: ", dukpy.evaljs(body))
         
         self.rules = DEFAULT_STYLE_SHEET.copy()
         
