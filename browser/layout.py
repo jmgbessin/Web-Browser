@@ -73,57 +73,12 @@ class BlockLayout:
             child.layout()
             
         self.height = sum([child.height for child in self.children])
-
-    def open_tag(self, tag):
-        if tag == "i":
-            self.style = "italic"
-        elif tag == "b":
-            self.weight = "bold"
-        elif tag == "small":
-            self.size -= 2
-        elif tag == "big":
-            self.size += 4
-        elif tag == "br":
-            self.flush()
-            
-    def close_tag(self, tag):
-        if tag == "i":
-            self.style = "roman"
-        elif tag == "b":
-            self.weight = "normal"
-        elif tag == "small":
-            self.size += 2
-        elif tag == "big":
-            self.size -= 4
-        elif tag == "p":
-            self.flush()
-            self.cursor_y += VSTEP
         
     def new_line(self):
         self.cursor_x = 0
         last_line = self.children[-1] if self.children else None
         new_line = LineLayout(self.node, self, last_line)
         self.children.append(new_line)
-        
-    def flush(self):
-        if not self.children: return
-        # checks for empty line list
-        metrics = [font.metrics() for x, word, font, color in self.line]
-        
-        # lowers the basline to account for different size fonts
-        # 1.25 * max_ascent takes into account the leading
-        
-        for rel_x, word, font, color in self.line:
-            x = self.x + rel_x
-            y = self.y + baseline - font.metrics("ascent")
-            # positions each word relative to the new baseline
-            self.display_list.append((x, y, word, font, color))
-            
-        max_descent = max([metric["descent"] for metric in metrics])
-        self.cursor_y = baseline + 1.25 * max_descent
-        
-        self.cursor_x = 0
-        self.line = []
     
     def recurse(self, node):
         if isinstance(node, Text):
