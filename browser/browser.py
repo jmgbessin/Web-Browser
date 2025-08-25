@@ -73,8 +73,6 @@ class Browser:
     def handle_key(self, e):
         if len(e.char) == 0: return
         if not (0x20 <= ord(e.char) < 0x7f): return
-        self.chrome.keypress(e.char)
-        self.draw()
         if self.chrome.keypress(e.char):
             self.draw()
         elif self.focus == "content":
