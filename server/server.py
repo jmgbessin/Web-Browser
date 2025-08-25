@@ -22,11 +22,12 @@ def handle_connection(conx):
         body = req.read(length).decode('utf8')
     else:
         body = None
-        
-    print("do_request:\n")
-    print(do_request(method, url, headers, body))
-    print("\n")
+    
     status, body = do_request(method, url, headers, body)
+    print("do_request:\n")
+    print(status)
+    print(body)
+    print("\n")
     
     response = "HTTP/1.0 {}\r\n".format(status)
     response += "Content-Length: {}\r\n".format(
@@ -46,8 +47,14 @@ def form_decode(body):
     return params
 
 def add_entry(params):
+    print("params:")
+    print(params)
+    print("\n")
     if 'guest' in params:
         ENTRIES.append(params['guest'])
+    print("Entries:")
+    print(ENTRIES)
+    print("\n")
     return show_comments()
 
 def not_found(url, method):
@@ -74,8 +81,11 @@ def show_comments():
     out += "<p><button>Sign the book!</button></p>"
     out += "</form>"
     out += "<strong></strong>"
+    print("Entries to be inserted in HTML:")
     for entry in ENTRIES:
+        print(entry)
         out += "<p>" + entry + "</p>"
+    print("\n")
     return out
 
 s = socket.socket(
