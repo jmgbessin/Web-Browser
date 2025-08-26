@@ -31,6 +31,13 @@ class Tab:
         # create an HTML tree by parsing the html body
         self.nodes = HTMLParser(body).parse()
         
+        """
+        print("\n")
+        print("HTML tree:")
+        print_tree(self.nodes)
+        print("\n")
+        """
+        
         # Downloading javascript scripts
         scripts = [
             node.attributes["src"] for node

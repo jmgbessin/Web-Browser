@@ -196,13 +196,15 @@ class LineLayout:
         if not self.children:
             pass
         
+        # current patch: add 0 to list in case a paragraph is empty
         max_ascent = max([word.font.metrics("ascent") 
-                          for word in self.children])
+                          for word in self.children] + [0])
         baseline = self.y + 1.25 * max_ascent
         for word in self.children:
             word.y = baseline - word.font.metrics("ascent")
+        # same
         max_descent = max([word.font.metrics("descent") 
-                           for word in self.children])
+                           for word in self.children] + [0])
         
         self.height = 1.25 * (max_ascent + max_descent)
         
