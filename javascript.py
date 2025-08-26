@@ -4,19 +4,21 @@ from utils import *
 
 RUNTIME_JS = open("runtime.js").read()
 
+EVENT_DISPATCH_JS = "new Node(dukpy.handle).dispatchEvent(dukpy.type)"
+
 class JSContext:
     def __init__(self, tab):
         self.interp = dukpy.JSInterpreter()
         self.tab = tab
         
-        self.interp.evaljs(RUNTIME_JS)
+        self.node_to_handle = {}
+        self.handle_to_node = {}
         
         self.interp.export_function("log", print)
         self.interp.export_function("querySelectorAll", self.querySelectorAll)
-        self.interp.export_function("getAttribute", self.getAtribute)
+        self.interp.export_function("getAttribute", self.getAttribute)
         
-        self.node_to_handle = {}
-        self.handle_to_node = {}
+        self.interp.evaljs(RUNTIME_JS)
         
     def run(self, script, code):
         # try except block ensures browser doesn't crash due to Javascript crash
@@ -42,9 +44,14 @@ class JSContext:
             handle = self.node_to_handle[elt]
         return handle
     
-    def getAtribute(self, handle, attr):
+    def getAttribute(self, handle, attr):
         elt = self.handle_to_node[handle]
         attr = elt.attributes.get(attr, None)
         return attr if attr else ""
-            
+    
+    def dispatch_event(self, type, elt):
+        handle = self.node_to_handle.get(elt, -1)
+        self.interp.evaljs(
+            EVENT_DISPATCH_JS, type=type, handle=handle
+        )   
         
