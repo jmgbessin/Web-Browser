@@ -40,3 +40,9 @@ var inputs = document.querySelectorAll("input");
 for (var i = 0; i < inputs.length; i++) {
     inputs[i].addEventListener("keydown", lengthCheck);
 }
+
+Object.defineProperty(Node.prototype, 'innerHTML', {
+    set: function(s) {
+        call_python("innerHTML_set", this.handle, s.toString())
+    }
+});
