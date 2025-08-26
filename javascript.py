@@ -10,5 +10,9 @@ class JSContext:
         
         self.interp.export_function("log", print)
         
-    def run(self, code):
-        return self.interp.evaljs(code)
+    def run(self, script, code):
+        # try except block ensures browser doesn't crash due to Javascript crash
+        try:
+            return self.interp.evaljs(code)
+        except dukpy.JSRuntimeError as e:
+            print("Script", script, "crashed", e)

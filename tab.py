@@ -53,7 +53,7 @@ class Tab:
                 body = script_url.request()
             except:
                 continue
-            self.js.run(body)
+            self.js.run(script, body)
             #print("Script returned: ", dukpy.evaljs(body))
         
         self.rules = DEFAULT_STYLE_SHEET.copy()
